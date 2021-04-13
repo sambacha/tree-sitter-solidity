@@ -1,6 +1,6 @@
 # Yarn Integrity file
 .yarn-integrity
-
+.DS_Store
 
 # Dependency directories
 node_modules/
