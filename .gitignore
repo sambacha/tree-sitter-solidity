@@ -8,3 +8,5 @@ src/
 .vscode/
 binding.gyp
 index.js
+vendor/
+
