@@ -782,7 +782,7 @@ contract Example {
                     (number_literal)))))))))))
 
 ================================================================================
-Type Cast Expression Nested (TODO: Solidity specification is wrong here fix it)
+Array Type Expression (Not a type cast)
 ================================================================================
 
 contract Example {

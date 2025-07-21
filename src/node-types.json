@@ -1875,7 +1875,7 @@
         "required": false,
         "types": [
           {
-            "type": "visibility",
+            "type": "state_variable_visibility",
             "named": true
           }
         ]
@@ -1895,6 +1895,11 @@
         }
       ]
     }
+  },
+  {
+    "type": "state_variable_visibility",
+    "named": true,
+    "fields": {}
   },
   {
     "type": "statement",

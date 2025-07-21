@@ -1,3 +1,6 @@
+/// <reference types="tree-sitter-cli/dsl" />
+
+
 // Precedence is used by the parser to determine which rule to apply when there are two rules that can be applied.
 // We use the PREC dict to globally define rule precedence
 // [N] corresponds to precedence table at https://docs.soliditylang.org/en/v0.8.24/cheatsheet.html#order-of-precedence-of-operators
@@ -601,7 +604,7 @@ module.exports = grammar({
         state_variable_declaration: $ => seq(
             field("type", $.type_name),
             repeat(choice(
-                field('visibility', $.visibility), // FIXME: this also allows external
+                field('visibility', $.state_variable_visibility),
                 "constant",
                 $.override_specifier,
                 $.immutable,
@@ -613,7 +616,12 @@ module.exports = grammar({
             )),
             $._semicolon
         ),
-         visibility: $ => choice(
+        state_variable_visibility: $ => choice(
+            'public',
+            'internal',
+            'private',
+        ),
+        visibility: $ => choice(
             'public',
             'internal',
             'private',
@@ -737,7 +745,6 @@ module.exports = grammar({
             $.unary_expression,
             $.update_expression,
             $.call_expression,
-            // TODO: $.function_call_options_expression,
             $.payable_conversion_expression,
             $.meta_type_expression,
             $._primary_expression,
@@ -768,7 +775,18 @@ module.exports = grammar({
         ternary_expression: $ => prec.left(seq($.expression, "?", $.expression, ':', $.expression)),
 
         // TODO: make sure call arguments are part of solidity
-        new_expression: $ => prec.left(seq('new', field("name", $.type_name), optional($._call_arguments))),
+        new_expression: $ => prec.left(seq(
+            'new', 
+            field("name", $.type_name), 
+            // TODO: Add support for new expression options {value: x, salt: y}
+            // This creates grammar conflicts with struct expressions
+            // optional(seq(
+            //     "{",
+            //     commaSep1($.call_option),
+            //     "}"
+            // )),
+            optional($._call_arguments)
+        )),
 
         tuple_expression: $ => prec(1, seq('(', commaSep(optional($.expression)), ')' )),
 
@@ -867,12 +885,12 @@ module.exports = grammar({
             ']'
         ),
 
-        struct_expression: $ => seq(
+        struct_expression: $ => prec(2, seq(
             field("type", $.expression),
             "{",
             commaSep($.struct_field_assignment),
             "}"
-        ),
+        )),
 
         struct_field_assignment: $ => seq(
             field("name", $.identifier),
@@ -896,8 +914,21 @@ module.exports = grammar({
 
         call_expression: $ => prec.right(PREC.CALL, seq(
             field("function", $.expression),
+            // TODO: Add support for call options {value: x, gas: y}
+            // This creates grammar conflicts with struct expressions
+            // optional(seq(
+            //     "{",
+            //     commaSep1($.call_option),
+            //     "}"
+            // )),
             $._call_arguments
         )),
+
+        call_option: $ => seq(
+            field("name", choice("value", "gas", "salt")),
+            ":",
+            field("value", $.expression)
+        ),
 
         payable_conversion_expression: $ => seq('payable', $._call_arguments),
         meta_type_expression: $ => seq('type', '(', $.type_name, ')'),
