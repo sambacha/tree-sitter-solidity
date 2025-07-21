@@ -31,7 +31,7 @@ const PREC = {
     REVERT: 13, // ??
 }
 
-// The following is the core grammar for Solidity. It accepts Solidity smart contracts between the versions 0.4.x and 0.7.x.
+// The following is the core grammar for Solidity. It accepts Solidity smart contracts between the versions 0.4.x and 0.8.x+.
 module.exports = grammar({
     name: 'solidity',
 
@@ -62,7 +62,8 @@ module.exports = grammar({
         [$.yul_label, $.yul_identifier],
 
         // This is to deal with ambiguities arising from different fallback styles
-        [$.fallback_receive_definition, $._function_type]
+        [$.fallback_receive_definition, $._function_type],
+
     ],
 
     rules: {
@@ -302,6 +303,7 @@ module.exports = grammar({
             alias($.user_defined_type, $.type_alias),
             'for',
             field("source", choice($.any_source_type, $.type_name)),
+            optional('global'),
             $._semicolon
         ),
 
@@ -513,7 +515,7 @@ module.exports = grammar({
 
         variable_declaration: $ => seq(
             field("type", $.type_name),
-            field("location", optional(choice('memory', 'storage', 'calldata'))),
+            field("location", optional($._storage_location)),
             field('name', $.identifier)
         ),
 
@@ -601,6 +603,9 @@ module.exports = grammar({
         //  -- [ Definitions ] --
 
         // Definitions
+        // NOTE: We use repeat(choice(...)) for modifiers to maintain compatibility with existing code,
+        // even though it allows invalid Solidity (e.g., multiple visibility modifiers).
+        // A stricter grammar would enforce proper ordering and uniqueness.
         state_variable_declaration: $ => seq(
             field("type", $.type_name),
             repeat(choice(
@@ -608,7 +613,7 @@ module.exports = grammar({
                 "constant",
                 $.override_specifier,
                 $.immutable,
-                field('location', $.state_location)
+                field('location', 'transient')
             )),
             field("name", $.identifier),
             optional(seq(
@@ -634,9 +639,6 @@ module.exports = grammar({
             'payable'
         ),
 
-        state_location: $ => choice(
-          "transient"
-        ),
 
         immutable: $ => 'immutable',
 
@@ -665,23 +667,20 @@ module.exports = grammar({
             $._parameter_list,
             repeat(choice(
                 $.modifier_invocation,
-                'payable',
-                choice('internal', 'public'),
+                field('visibility', choice('internal', 'public')),
+                field('mutability', 'payable')
             )),
             field('body', $.function_body),
         ),
 
         fallback_receive_definition: $ => seq(
-            choice(seq(
-                // optional("function"),
-                choice('fallback', 'receive', 'function'),
-                ),
-                "function"
+            choice(
+                'fallback',
+                'receive',
+                'function'  // old-style fallback
             ),
-            // #todo: only fallback should get arguments
             $._parameter_list,
-            // FIXME: We use repeat to allow for unorderedness. However, this means that the parser
-            // accepts more than just the solidity language. The same problem exists for other definition rules.
+            // NOTE: Only fallback() should accept parameters, receive() must have empty parameters
             repeat(choice(
                 $.visibility,
                 $.modifier_invocation,
@@ -769,23 +768,28 @@ module.exports = grammar({
             $.new_expression,
         ),
 
-        // TODO: back this up with official documentation
+        // Type cast expressions in Solidity (e.g., uint256(x), address(y))
         type_cast_expression: $ => prec.left(seq($.primitive_type,  $._call_arguments)),
 
         ternary_expression: $ => prec.left(seq($.expression, "?", $.expression, ':', $.expression)),
 
-        // TODO: make sure call arguments are part of solidity
-        new_expression: $ => prec.left(seq(
-            'new', 
-            field("name", $.type_name), 
-            // TODO: Add support for new expression options {value: x, salt: y}
-            // This creates grammar conflicts with struct expressions
-            // optional(seq(
-            //     "{",
-            //     commaSep1($.call_option),
-            //     "}"
-            // )),
-            optional($._call_arguments)
+        // New expression for contract creation (e.g., new Contract(), new Contract{salt: 0x123}())
+        new_expression: $ => prec.left(choice(
+            // New without options
+            seq(
+                'new', 
+                field("name", $.type_name),
+                optional($._call_arguments)
+            ),
+            // New with options (higher precedence)
+            prec(1, seq(
+                'new', 
+                field("name", $.type_name),
+                "{",
+                commaSep1($.call_option),
+                "}",
+                optional($._call_arguments)
+            ))
         )),
 
         tuple_expression: $ => prec(1, seq('(', commaSep(optional($.expression)), ')' )),
@@ -895,8 +899,9 @@ module.exports = grammar({
         struct_field_assignment: $ => seq(
             field("name", $.identifier),
             ":",
-            field("value", $.expression),
+            field("value", $.expression)
         ),
+
 
         parenthesized_expression: $ => prec(2, seq('(', $.expression, ')')),
 
@@ -912,16 +917,20 @@ module.exports = grammar({
             field('right', $.expression)
         )),
 
-        call_expression: $ => prec.right(PREC.CALL, seq(
-            field("function", $.expression),
-            // TODO: Add support for call options {value: x, gas: y}
-            // This creates grammar conflicts with struct expressions
-            // optional(seq(
-            //     "{",
-            //     commaSep1($.call_option),
-            //     "}"
-            // )),
-            $._call_arguments
+        call_expression: $ => prec.right(PREC.CALL, choice(
+            // Regular call without options
+            seq(
+                field("function", $.expression),
+                $._call_arguments
+            ),
+            // Call with options (higher precedence to resolve conflict)
+            prec(1, seq(
+                field("function", $.expression),
+                "{",
+                commaSep1($.call_option),
+                "}",
+                $._call_arguments
+            ))
         )),
 
         call_option: $ => seq(
@@ -946,10 +955,8 @@ module.exports = grammar({
         _function_type: $ => prec.right(seq(
             'function',
             field("parameters", $._parameter_list),
-            repeat(choice(
-                $.visibility,
-                $.state_mutability,
-            )),
+            optional($.visibility),
+            optional($.state_mutability),
             optional($._return_parameters),
         )),
 
@@ -975,7 +982,8 @@ module.exports = grammar({
         _storage_location: $ => choice(
             'memory',
             'storage',
-            'calldata'
+            'calldata',
+            'transient'
         ),
 
         user_defined_type: $ => $._identifier_path,

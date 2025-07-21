@@ -11,3 +11,4 @@ node_modules/
 Cargo.lock
 target
 build
+.DS_Store

@@ -387,8 +387,46 @@
         {
           "type": "call_argument",
           "named": true
+        },
+        {
+          "type": "call_option",
+          "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "call_option",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "gas",
+            "named": false
+          },
+          {
+            "type": "salt",
+            "named": false
+          },
+          {
+            "type": "value",
+            "named": false
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -494,6 +532,30 @@
           {
             "type": "function_body",
             "named": true
+          }
+        ]
+      },
+      "mutability": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "payable",
+            "named": false
+          }
+        ]
+      },
+      "visibility": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "internal",
+            "named": false
+          },
+          {
+            "type": "public",
+            "named": false
           }
         ]
       }
@@ -1448,6 +1510,10 @@
         {
           "type": "call_argument",
           "named": true
+        },
+        {
+          "type": "call_option",
+          "named": true
         }
       ]
     }
@@ -1505,6 +1571,10 @@
           },
           {
             "type": "storage",
+            "named": false
+          },
+          {
+            "type": "transient",
             "named": false
           }
         ]
@@ -1608,6 +1678,10 @@
           },
           {
             "type": "storage",
+            "named": false
+          },
+          {
+            "type": "transient",
             "named": false
           }
         ]
@@ -1817,11 +1891,6 @@
     }
   },
   {
-    "type": "state_location",
-    "named": true,
-    "fields": {}
-  },
-  {
     "type": "state_mutability",
     "named": true,
     "fields": {}
@@ -1835,8 +1904,8 @@
         "required": false,
         "types": [
           {
-            "type": "state_location",
-            "named": true
+            "type": "transient",
+            "named": false
           }
         ]
       },
@@ -2484,6 +2553,10 @@
           },
           {
             "type": "storage",
+            "named": false
+          },
+          {
+            "type": "transient",
             "named": false
           }
         ]
@@ -3601,6 +3674,10 @@
     "named": false
   },
   {
+    "type": "global",
+    "named": false
+  },
+  {
     "type": "gt",
     "named": false
   },
@@ -3945,6 +4022,10 @@
     "named": false
   },
   {
+    "type": "salt",
+    "named": false
+  },
+  {
     "type": "sar",
     "named": false
   },
@@ -4210,6 +4291,10 @@
   },
   {
     "type": "using",
+    "named": false
+  },
+  {
+    "type": "value",
     "named": false
   },
   {
