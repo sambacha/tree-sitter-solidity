@@ -6,6 +6,10 @@
   "types": "bindings/node",
   "scripts": {
     "test": "tree-sitter generate && tree-sitter test",
+    "test:predicates": "mocha test/predicate-tests.js",
+    "test:highlights": "node scripts/test-highlights.js",
+    "test:highlights:native": "tree-sitter test --highlight test/highlight/*.sol",
+    "test:all": "npm test && npm run test:predicates && npm run test:highlights",
     "install": "node-gyp-build",
     "prebuildify": "prebuildify --napi --strip"
   },
@@ -26,7 +30,8 @@
   },
   "devDependencies": {
     "tree-sitter-cli": "^0.24.4",
-    "prebuildify": "^6.0.0"
+    "prebuildify": "^6.0.0",
+    "mocha": "^10.0.0"
   },
   "files": [
     "grammar.js",
@@ -34,6 +39,8 @@
     "prebuilds/**",
     "bindings/node/*",
     "queries/*",
-    "src/**"
+    "src/**",
+    "docs/CUSTOM_PREDICATES.md",
+    "examples/custom-predicates-example.js"
   ]
 }

@@ -3354,7 +3354,7 @@
                 "name": "visibility",
                 "content": {
                   "type": "SYMBOL",
-                  "name": "visibility"
+                  "name": "state_variable_visibility"
                 }
               },
               {
@@ -3416,6 +3416,23 @@
         {
           "type": "SYMBOL",
           "name": "_semicolon"
+        }
+      ]
+    },
+    "state_variable_visibility": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "public"
+        },
+        {
+          "type": "STRING",
+          "value": "internal"
+        },
+        {
+          "type": "STRING",
+          "value": "private"
         }
       ]
     },
@@ -5194,164 +5211,176 @@
       }
     },
     "array_access": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "FIELD",
-          "name": "base",
-          "content": {
-            "type": "SYMBOL",
-            "name": "expression"
-          }
-        },
-        {
-          "type": "STRING",
-          "value": "["
-        },
-        {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "FIELD",
-              "name": "index",
-              "content": {
-                "type": "SYMBOL",
-                "name": "expression"
-              }
-            },
-            {
-              "type": "BLANK"
+      "type": "PREC_LEFT",
+      "value": 13,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "FIELD",
+            "name": "base",
+            "content": {
+              "type": "SYMBOL",
+              "name": "expression"
             }
-          ]
-        },
-        {
-          "type": "STRING",
-          "value": "]"
-        }
-      ]
+          },
+          {
+            "type": "STRING",
+            "value": "["
+          },
+          {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "FIELD",
+                "name": "index",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "expression"
+                }
+              },
+              {
+                "type": "BLANK"
+              }
+            ]
+          },
+          {
+            "type": "STRING",
+            "value": "]"
+          }
+        ]
+      }
     },
     "slice_access": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "FIELD",
-          "name": "base",
-          "content": {
-            "type": "SYMBOL",
-            "name": "expression"
+      "type": "PREC_LEFT",
+      "value": 13,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "FIELD",
+            "name": "base",
+            "content": {
+              "type": "SYMBOL",
+              "name": "expression"
+            }
+          },
+          {
+            "type": "STRING",
+            "value": "["
+          },
+          {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "FIELD",
+                "name": "from",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "expression"
+                }
+              },
+              {
+                "type": "BLANK"
+              }
+            ]
+          },
+          {
+            "type": "STRING",
+            "value": ":"
+          },
+          {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "FIELD",
+                "name": "to",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "expression"
+                }
+              },
+              {
+                "type": "BLANK"
+              }
+            ]
+          },
+          {
+            "type": "STRING",
+            "value": "]"
           }
-        },
-        {
-          "type": "STRING",
-          "value": "["
-        },
-        {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "FIELD",
-              "name": "from",
-              "content": {
-                "type": "SYMBOL",
-                "name": "expression"
-              }
-            },
-            {
-              "type": "BLANK"
-            }
-          ]
-        },
-        {
-          "type": "STRING",
-          "value": ":"
-        },
-        {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "FIELD",
-              "name": "to",
-              "content": {
-                "type": "SYMBOL",
-                "name": "expression"
-              }
-            },
-            {
-              "type": "BLANK"
-            }
-          ]
-        },
-        {
-          "type": "STRING",
-          "value": "]"
-        }
-      ]
+        ]
+      }
     },
     "struct_expression": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "FIELD",
-          "name": "type",
-          "content": {
-            "type": "SYMBOL",
-            "name": "expression"
-          }
-        },
-        {
-          "type": "STRING",
-          "value": "{"
-        },
-        {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "SEQ",
-              "members": [
-                {
-                  "type": "SYMBOL",
-                  "name": "struct_field_assignment"
-                },
-                {
-                  "type": "REPEAT",
-                  "content": {
-                    "type": "SEQ",
+      "type": "PREC",
+      "value": 2,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "FIELD",
+            "name": "type",
+            "content": {
+              "type": "SYMBOL",
+              "name": "expression"
+            }
+          },
+          {
+            "type": "STRING",
+            "value": "{"
+          },
+          {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "struct_field_assignment"
+                  },
+                  {
+                    "type": "REPEAT",
+                    "content": {
+                      "type": "SEQ",
+                      "members": [
+                        {
+                          "type": "STRING",
+                          "value": ","
+                        },
+                        {
+                          "type": "SYMBOL",
+                          "name": "struct_field_assignment"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "type": "CHOICE",
                     "members": [
                       {
                         "type": "STRING",
                         "value": ","
                       },
                       {
-                        "type": "SYMBOL",
-                        "name": "struct_field_assignment"
+                        "type": "BLANK"
                       }
                     ]
                   }
-                },
-                {
-                  "type": "CHOICE",
-                  "members": [
-                    {
-                      "type": "STRING",
-                      "value": ","
-                    },
-                    {
-                      "type": "BLANK"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "type": "BLANK"
-            }
-          ]
-        },
-        {
-          "type": "STRING",
-          "value": "}"
-        }
-      ]
+                ]
+              },
+              {
+                "type": "BLANK"
+              }
+            ]
+          },
+          {
+            "type": "STRING",
+            "value": "}"
+          }
+        ]
+      }
     },
     "struct_field_assignment": {
       "type": "SEQ",
@@ -5519,6 +5548,44 @@
         ]
       }
     },
+    "call_option": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "name",
+          "content": {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "STRING",
+                "value": "value"
+              },
+              {
+                "type": "STRING",
+                "value": "gas"
+              },
+              {
+                "type": "STRING",
+                "value": "salt"
+              }
+            ]
+          }
+        },
+        {
+          "type": "STRING",
+          "value": ":"
+        },
+        {
+          "type": "FIELD",
+          "name": "value",
+          "content": {
+            "type": "SYMBOL",
+            "name": "expression"
+          }
+        }
+      ]
+    },
     "payable_conversion_expression": {
       "type": "SEQ",
       "members": [
@@ -5580,7 +5647,7 @@
     },
     "_array_type": {
       "type": "PREC",
-      "value": 1,
+      "value": 3,
       "content": {
         "type": "SEQ",
         "members": [
@@ -6051,419 +6118,43 @@
       }
     },
     "_int": {
-      "type": "CHOICE",
-      "members": [
-        {
-          "type": "STRING",
-          "value": "int"
-        },
-        {
-          "type": "STRING",
-          "value": "int8"
-        },
-        {
-          "type": "STRING",
-          "value": "int16"
-        },
-        {
-          "type": "STRING",
-          "value": "int24"
-        },
-        {
-          "type": "STRING",
-          "value": "int32"
-        },
-        {
-          "type": "STRING",
-          "value": "int40"
-        },
-        {
-          "type": "STRING",
-          "value": "int48"
-        },
-        {
-          "type": "STRING",
-          "value": "int56"
-        },
-        {
-          "type": "STRING",
-          "value": "int64"
-        },
-        {
-          "type": "STRING",
-          "value": "int72"
-        },
-        {
-          "type": "STRING",
-          "value": "int80"
-        },
-        {
-          "type": "STRING",
-          "value": "int88"
-        },
-        {
-          "type": "STRING",
-          "value": "int96"
-        },
-        {
-          "type": "STRING",
-          "value": "int104"
-        },
-        {
-          "type": "STRING",
-          "value": "int112"
-        },
-        {
-          "type": "STRING",
-          "value": "int120"
-        },
-        {
-          "type": "STRING",
-          "value": "int128"
-        },
-        {
-          "type": "STRING",
-          "value": "int136"
-        },
-        {
-          "type": "STRING",
-          "value": "int144"
-        },
-        {
-          "type": "STRING",
-          "value": "int152"
-        },
-        {
-          "type": "STRING",
-          "value": "int160"
-        },
-        {
-          "type": "STRING",
-          "value": "int168"
-        },
-        {
-          "type": "STRING",
-          "value": "int176"
-        },
-        {
-          "type": "STRING",
-          "value": "int184"
-        },
-        {
-          "type": "STRING",
-          "value": "int192"
-        },
-        {
-          "type": "STRING",
-          "value": "int200"
-        },
-        {
-          "type": "STRING",
-          "value": "int208"
-        },
-        {
-          "type": "STRING",
-          "value": "int216"
-        },
-        {
-          "type": "STRING",
-          "value": "int224"
-        },
-        {
-          "type": "STRING",
-          "value": "int232"
-        },
-        {
-          "type": "STRING",
-          "value": "int240"
-        },
-        {
-          "type": "STRING",
-          "value": "int248"
-        },
-        {
-          "type": "STRING",
-          "value": "int256"
-        }
-      ]
+      "type": "TOKEN",
+      "content": {
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "STRING",
+            "value": "int"
+          },
+          {
+            "type": "PATTERN",
+            "value": "int(8|16|24|32|40|48|56|64|72|80|88|96|104|112|120|128|136|144|152|160|168|176|184|192|200|208|216|224|232|240|248|256)"
+          }
+        ]
+      }
     },
     "_uint": {
-      "type": "CHOICE",
-      "members": [
-        {
-          "type": "STRING",
-          "value": "uint"
-        },
-        {
-          "type": "STRING",
-          "value": "uint8"
-        },
-        {
-          "type": "STRING",
-          "value": "uint16"
-        },
-        {
-          "type": "STRING",
-          "value": "uint24"
-        },
-        {
-          "type": "STRING",
-          "value": "uint32"
-        },
-        {
-          "type": "STRING",
-          "value": "uint40"
-        },
-        {
-          "type": "STRING",
-          "value": "uint48"
-        },
-        {
-          "type": "STRING",
-          "value": "uint56"
-        },
-        {
-          "type": "STRING",
-          "value": "uint64"
-        },
-        {
-          "type": "STRING",
-          "value": "uint72"
-        },
-        {
-          "type": "STRING",
-          "value": "uint80"
-        },
-        {
-          "type": "STRING",
-          "value": "uint88"
-        },
-        {
-          "type": "STRING",
-          "value": "uint96"
-        },
-        {
-          "type": "STRING",
-          "value": "uint104"
-        },
-        {
-          "type": "STRING",
-          "value": "uint112"
-        },
-        {
-          "type": "STRING",
-          "value": "uint120"
-        },
-        {
-          "type": "STRING",
-          "value": "uint128"
-        },
-        {
-          "type": "STRING",
-          "value": "uint136"
-        },
-        {
-          "type": "STRING",
-          "value": "uint144"
-        },
-        {
-          "type": "STRING",
-          "value": "uint152"
-        },
-        {
-          "type": "STRING",
-          "value": "uint160"
-        },
-        {
-          "type": "STRING",
-          "value": "uint168"
-        },
-        {
-          "type": "STRING",
-          "value": "uint176"
-        },
-        {
-          "type": "STRING",
-          "value": "uint184"
-        },
-        {
-          "type": "STRING",
-          "value": "uint192"
-        },
-        {
-          "type": "STRING",
-          "value": "uint200"
-        },
-        {
-          "type": "STRING",
-          "value": "uint208"
-        },
-        {
-          "type": "STRING",
-          "value": "uint216"
-        },
-        {
-          "type": "STRING",
-          "value": "uint224"
-        },
-        {
-          "type": "STRING",
-          "value": "uint232"
-        },
-        {
-          "type": "STRING",
-          "value": "uint240"
-        },
-        {
-          "type": "STRING",
-          "value": "uint248"
-        },
-        {
-          "type": "STRING",
-          "value": "uint256"
-        }
-      ]
+      "type": "TOKEN",
+      "content": {
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "STRING",
+            "value": "uint"
+          },
+          {
+            "type": "PATTERN",
+            "value": "uint(8|16|24|32|40|48|56|64|72|80|88|96|104|112|120|128|136|144|152|160|168|176|184|192|200|208|216|224|232|240|248|256)"
+          }
+        ]
+      }
     },
     "_bytes": {
-      "type": "CHOICE",
-      "members": [
-        {
-          "type": "STRING",
-          "value": "byte"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes1"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes2"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes3"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes4"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes5"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes6"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes7"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes8"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes9"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes10"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes11"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes12"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes13"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes14"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes15"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes16"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes17"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes18"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes19"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes20"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes21"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes22"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes23"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes24"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes25"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes26"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes27"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes28"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes29"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes30"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes31"
-        },
-        {
-          "type": "STRING",
-          "value": "bytes32"
-        }
-      ]
+      "type": "TOKEN",
+      "content": {
+        "type": "PATTERN",
+        "value": "bytes([1-9]|[12][0-9]|3[0-2])?"
+      }
     },
     "_fixed": {
       "type": "CHOICE",
@@ -7093,5 +6784,6 @@
   "precedences": [],
   "externals": [],
   "inline": [],
-  "supertypes": []
+  "supertypes": [],
+  "reserved": {}
 }
