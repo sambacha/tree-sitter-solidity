@@ -77,13 +77,15 @@ class SolidityPredicates {
     for (let i = 0; i < root.childCount; i++) {
       const child = root.child(i);
       if (child.type === 'pragma_directive') {
-        const pragmaToken = child.childForFieldName('pragma_token');
-        if (pragmaToken && pragmaToken.type === 'solidity_pragma_token') {
-          // Extract version from solidity_version node
-          for (let j = 0; j < pragmaToken.childCount; j++) {
-            const versionNode = pragmaToken.child(j);
-            if (versionNode.type === 'solidity_version') {
-              return versionNode.text.replace(/[^0-9.]/g, '');
+        // Look for solidity_pragma_token child
+        for (let j = 0; j < child.childCount; j++) {
+          const subchild = child.child(j);
+          if (subchild.type === 'solidity_pragma_token') {
+            // Extract version from the text, e.g., "solidity ^0.8.19"
+            const text = subchild.text;
+            const versionMatch = text.match(/(\d+\.\d+\.\d+)/);
+            if (versionMatch) {
+              return versionMatch[1];
             }
           }
         }
@@ -117,7 +119,8 @@ class SolidityPredicates {
   solidityVersionGte(operands, match) {
     if (operands.length < 2) return false;
     const [captureNode, targetVersion] = operands;
-    const node = match.captures.find(c => c.name === captureNode.name)?.node;
+    const captureName = captureNode.name.replace(/^@/, '');
+    const node = match.captures.find(c => c.name === captureName)?.node;
     if (!node) return false;
     
     const pragmaVersion = this.getPragmaVersion(node);
@@ -132,7 +135,8 @@ class SolidityPredicates {
   solidityVersionLt(operands, match) {
     if (operands.length < 2) return false;
     const [captureNode, targetVersion] = operands;
-    const node = match.captures.find(c => c.name === captureNode.name)?.node;
+    const captureName = captureNode.name.replace(/^@/, '');
+    const node = match.captures.find(c => c.name === captureName)?.node;
     if (!node) return false;
     
     const pragmaVersion = this.getPragmaVersion(node);
@@ -147,7 +151,8 @@ class SolidityPredicates {
   isUserDefinedType(operands, match) {
     if (operands.length < 1) return false;
     const captureNode = operands[0];
-    const node = match.captures.find(c => c.name === captureNode.name)?.node;
+    const captureName = captureNode.name.replace(/^@/, '');
+    const node = match.captures.find(c => c.name === captureName)?.node;
     if (!node) return false;
     
     // Check parent node type
@@ -161,7 +166,8 @@ class SolidityPredicates {
   isMappingType(operands, match) {
     if (operands.length < 1) return false;
     const captureNode = operands[0];
-    const node = match.captures.find(c => c.name === captureNode.name)?.node;
+    const captureName = captureNode.name.replace(/^@/, '');
+    const node = match.captures.find(c => c.name === captureName)?.node;
     if (!node) return false;
     
     // Check if node is part of a mapping type
@@ -179,7 +185,8 @@ class SolidityPredicates {
   isArrayType(operands, match) {
     if (operands.length < 1) return false;
     const captureNode = operands[0];
-    const node = match.captures.find(c => c.name === captureNode.name)?.node;
+    const captureName = captureNode.name.replace(/^@/, '');
+    const node = match.captures.find(c => c.name === captureName)?.node;
     if (!node) return false;
     
     // Check if node is part of an array type
@@ -197,7 +204,9 @@ class SolidityPredicates {
   isStateVariable(operands, match) {
     if (operands.length < 1) return false;
     const captureNode = operands[0];
-    const node = match.captures.find(c => c.name === captureNode.name)?.node;
+    // captureNode is {type: 'capture', name: '@variable.state'}
+    const captureName = (captureNode.name || captureNode).replace(/^@/, '');
+    const node = match.captures.find(c => c.name === captureName)?.node;
     if (!node) return false;
     
     // State variables are defined at contract body level
@@ -220,7 +229,8 @@ class SolidityPredicates {
   isConstant(operands, match) {
     if (operands.length < 1) return false;
     const captureNode = operands[0];
-    const node = match.captures.find(c => c.name === captureNode.name)?.node;
+    const captureName = captureNode.name.replace(/^@/, '');
+    const node = match.captures.find(c => c.name === captureName)?.node;
     if (!node) return false;
     
     // Check for constant keyword in declaration
@@ -247,7 +257,8 @@ class SolidityPredicates {
   isImmutable(operands, match) {
     if (operands.length < 1) return false;
     const captureNode = operands[0];
-    const node = match.captures.find(c => c.name === captureNode.name)?.node;
+    const captureName = captureNode.name.replace(/^@/, '');
+    const node = match.captures.find(c => c.name === captureName)?.node;
     if (!node) return false;
     
     // Check for immutable keyword in declaration
@@ -273,7 +284,8 @@ class SolidityPredicates {
   isPayable(operands, match) {
     if (operands.length < 1) return false;
     const captureNode = operands[0];
-    const node = match.captures.find(c => c.name === captureNode.name)?.node;
+    const captureName = captureNode.name.replace(/^@/, '');
+    const node = match.captures.find(c => c.name === captureName)?.node;
     if (!node) return false;
     
     // Find enclosing function definition
@@ -300,7 +312,8 @@ class SolidityPredicates {
   isView(operands, match) {
     if (operands.length < 1) return false;
     const captureNode = operands[0];
-    const node = match.captures.find(c => c.name === captureNode.name)?.node;
+    const captureName = captureNode.name.replace(/^@/, '');
+    const node = match.captures.find(c => c.name === captureName)?.node;
     if (!node) return false;
     
     // Find enclosing function definition
@@ -327,7 +340,8 @@ class SolidityPredicates {
   isPure(operands, match) {
     if (operands.length < 1) return false;
     const captureNode = operands[0];
-    const node = match.captures.find(c => c.name === captureNode.name)?.node;
+    const captureName = captureNode.name.replace(/^@/, '');
+    const node = match.captures.find(c => c.name === captureName)?.node;
     if (!node) return false;
     
     // Find enclosing function definition
@@ -354,7 +368,8 @@ class SolidityPredicates {
   isExternalCall(operands, match) {
     if (operands.length < 1) return false;
     const captureNode = operands[0];
-    const node = match.captures.find(c => c.name === captureNode.name)?.node;
+    const captureName = captureNode.name.replace(/^@/, '');
+    const node = match.captures.find(c => c.name === captureName)?.node;
     if (!node) return false;
     
     // External calls typically have a member expression as the callee
@@ -377,7 +392,8 @@ class SolidityPredicates {
   isLowLevelCall(operands, match) {
     if (operands.length < 1) return false;
     const captureNode = operands[0];
-    const node = match.captures.find(c => c.name === captureNode.name)?.node;
+    const captureName = captureNode.name.replace(/^@/, '');
+    const node = match.captures.find(c => c.name === captureName)?.node;
     if (!node) return false;
     
     // Check if this is a member call to call/delegatecall/staticcall

@@ -5,187 +5,302 @@
  * and tree-sitter's query execution engine.
  */
 
+const Parser = require('tree-sitter');
 const SolidityPredicates = require('./custom-predicates');
 
+// Custom predicate names (without ? suffix)
+const CUSTOM_PREDICATES = [
+  'solidity-version-gte',
+  'solidity-version-lt',
+  'is-user-defined-type',
+  'is-mapping-type',
+  'is-array-type',
+  'is-state-variable',
+  'is-constant',
+  'is-immutable',
+  'is-payable',
+  'is-view',
+  'is-pure',
+  'is-external-call',
+  'is-low-level-call'
+];
+
 /**
- * Apply custom predicates to query matches
- * @param {Array} matches - Raw matches from tree-sitter query
- * @param {Query} query - The tree-sitter Query object
- * @returns {Array} - Filtered matches with predicates applied
+ * Simple approach: Store predicates in comments and parse them later
+ * This avoids the complexity of preprocessing the query
  */
-function applyCustomPredicates(matches, query) {
-  const predicates = new SolidityPredicates();
-  const filteredMatches = [];
-
-  for (const match of matches) {
-    // Get predicates for this pattern
-    const patternPredicates = query.predicatesForPattern(match.pattern);
+function storePredicatesAsComments(source) {
+  const lines = source.split('\n');
+  const processedLines = [];
+  
+  for (const line of lines) {
+    // Check if line contains a custom predicate
+    let hasCustomPredicate = false;
     
-    if (!patternPredicates || patternPredicates.length === 0) {
-      // No predicates, include the match
-      filteredMatches.push(match);
-      continue;
-    }
-
-    // Check all predicates
-    let allPredicatesPass = true;
-    
-    for (const predicate of patternPredicates) {
-      const predicateName = predicate.operator;
-      
-      // Skip built-in predicates (handled by tree-sitter)
-      if (isBuiltinPredicate(predicateName)) {
-        continue;
-      }
-      
-      // Apply custom predicate
-      const predicateResult = predicates.apply(
-        predicateName.replace(/\?$/, ''), // Remove trailing ?
-        predicate.operands,
-        match
-      );
-      
-      if (!predicateResult) {
-        allPredicatesPass = false;
+    for (const predicateName of CUSTOM_PREDICATES) {
+      if (line.includes(`#${predicateName}?`)) {
+        hasCustomPredicate = true;
+        // Convert predicate to comment for storage
+        const commentLine = line.replace(/\(#([^)]+)\)/, '; CUSTOM_PREDICATE: $1');
+        processedLines.push(commentLine);
         break;
       }
     }
     
-    if (allPredicatesPass) {
-      filteredMatches.push(match);
+    if (!hasCustomPredicate) {
+      processedLines.push(line);
     }
   }
   
-  return filteredMatches;
+  return processedLines.join('\n');
 }
 
 /**
- * Apply custom predicates to captures from Query#captures
- * @param {Array} captures - Raw captures from tree-sitter query
- * @param {Query} query - The tree-sitter Query object
- * @returns {Array} - Filtered captures with predicates applied
+ * Alternative approach: Use a wrapper that doesn't require preprocessing
  */
-function applyCustomPredicatesToCaptures(captures, query) {
-  const predicates = new SolidityPredicates();
-  const patternMatches = new Map(); // Track which patterns have passing predicates
-  
-  // Group captures by pattern
-  const capturesByPattern = new Map();
-  for (const capture of captures) {
-    const patternIndex = capture.patternIndex;
-    if (!capturesByPattern.has(patternIndex)) {
-      capturesByPattern.set(patternIndex, []);
+class QueryWithCustomPredicates {
+  constructor(language, source) {
+    this.source = source;
+    this.language = language;
+    this.customPredicates = new Map();
+    this.predicateImpl = new SolidityPredicates();
+    
+    // Parse the query to extract custom predicates
+    this._parseCustomPredicates();
+    
+    // Create the base query without custom predicates
+    const processedSource = this._removeCustomPredicates();
+    
+    // Debug: save to file
+    require('fs').writeFileSync('/tmp/processed-query-debug.scm', processedSource);
+    
+    try {
+      this.baseQuery = new Parser.Query(language, processedSource);
+    } catch (error) {
+      console.error('Query parse error at position', error.position);
+      if (error.position) {
+        const lines = processedSource.split('\n');
+        let pos = 0;
+        for (let i = 0; i < lines.length; i++) {
+          if (pos + lines[i].length >= error.position) {
+            console.error(`Error on line ${i + 1}: "${lines[i]}"`);
+            break;
+          }
+          pos += lines[i].length + 1;
+        }
+      }
+      throw error;
     }
-    capturesByPattern.get(patternIndex).push(capture);
   }
   
-  // Check predicates for each pattern
-  for (const [patternIndex, patternCaptures] of capturesByPattern) {
-    const patternPredicates = query.predicatesForPattern(patternIndex);
+  _parseCustomPredicates() {
+    // Parse the query source more carefully to track pattern indices
+    const lines = this.source.split('\n');
+    let currentPattern = '';
+    let depth = 0;
+    let patternIndex = 0;
     
-    if (!patternPredicates || patternPredicates.length === 0) {
-      // No predicates, all captures pass
-      patternMatches.set(patternIndex, true);
-      continue;
-    }
-    
-    // Create a mock match object for predicate evaluation
-    const mockMatch = {
-      pattern: patternIndex,
-      captures: patternCaptures
-    };
-    
-    // Check all predicates
-    let allPredicatesPass = true;
-    
-    for (const predicate of patternPredicates) {
-      const predicateName = predicate.operator;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
       
-      // Skip built-in predicates
-      if (isBuiltinPredicate(predicateName)) {
+      // Skip comments
+      if (trimmed.startsWith(';')) {
         continue;
       }
       
-      // Apply custom predicate
-      const predicateResult = predicates.apply(
-        predicateName.replace(/\?$/, ''), // Remove trailing ?
-        predicate.operands,
-        mockMatch
-      );
+      // Track parentheses depth
+      for (const char of line) {
+        if (char === '(') depth++;
+        else if (char === ')') depth--;
+      }
       
-      if (!predicateResult) {
-        allPredicatesPass = false;
-        break;
+      currentPattern += line + '\n';
+      
+      // Pattern complete when depth returns to 0
+      if (depth === 0 && currentPattern.trim()) {
+        // Check if this pattern has custom predicates
+        const predicates = [];
+        
+        for (const predicateName of CUSTOM_PREDICATES) {
+          const predRegex = new RegExp(`\\(#${predicateName}\\?\\s+([^)]+)\\)`, 'g');
+          const predMatches = currentPattern.matchAll(predRegex);
+          
+          for (const predMatch of predMatches) {
+            const operandString = predMatch[1];
+            const operands = this._parseOperands(operandString);
+            
+            predicates.push({
+              operator: `${predicateName}?`,
+              operands: operands
+            });
+          }
+        }
+        
+        if (predicates.length > 0) {
+          this.customPredicates.set(patternIndex, predicates);
+        }
+        
+        // Increment pattern index for every complete pattern
+        patternIndex++;
+        currentPattern = '';
+      }
+    }
+  }
+  
+  _removeCustomPredicates() {
+    let processed = this.source;
+    
+    // Remove custom predicate expressions including parentheses
+    for (const predicateName of CUSTOM_PREDICATES) {
+      // Match predicates that may span lines or be on the same line
+      const regex = new RegExp(`\\s*\\(#${predicateName}\\\\?[^)]+\\)`, 'g');
+      processed = processed.replace(regex, '');
+    }
+    
+    return processed;
+  }
+  
+  _parseOperands(operandString) {
+    const operands = [];
+    const parts = operandString.trim().split(/\s+/);
+    
+    for (const part of parts) {
+      if (part.startsWith('@')) {
+        operands.push({ type: 'capture', name: part });
+      } else if (part.startsWith('"') && part.endsWith('"')) {
+        operands.push({ type: 'string', value: part.slice(1, -1) });
+      } else {
+        operands.push({ type: 'string', value: part });
       }
     }
     
-    patternMatches.set(patternIndex, allPredicatesPass);
+    return operands;
   }
   
-  // Filter captures based on predicate results
-  return captures.filter(capture => {
-    return patternMatches.get(capture.patternIndex) !== false;
-  });
+  _applyCustomPredicates(results, isCaptures = false) {
+    if (isCaptures) {
+      // For captures, we need to determine which pattern each capture belongs to
+      return this._applyCustomPredicatesToCaptures(results);
+    } else {
+      // For matches, we have pattern information
+      return this._applyCustomPredicatesToMatches(results);
+    }
+  }
+  
+  _applyCustomPredicatesToMatches(matches) {
+    const filtered = [];
+    
+    for (const match of matches) {
+      const predicates = this.customPredicates.get(match.pattern);
+      
+      if (!predicates || predicates.length === 0) {
+        // No custom predicates, include match
+        filtered.push(match);
+        continue;
+      }
+      
+      // Check all predicates
+      let allPass = true;
+      
+      for (const predicate of predicates) {
+        const predicateName = predicate.operator.replace(/\?$/, '');
+        const result = this.predicateImpl.apply(predicateName, predicate.operands, match);
+        
+        if (!result) {
+          allPass = false;
+          break;
+        }
+      }
+      
+      if (allPass) {
+        filtered.push(match);
+      }
+    }
+    
+    return filtered;
+  }
+  
+  _applyCustomPredicatesToCaptures(captures) {
+    // For captures, we can't use the base query matches because they don't have predicates
+    // Instead, we need to check each capture against our predicate patterns
+    
+    if (captures.length === 0) return [];
+    
+    const filtered = [];
+    
+    // Get all matches with our custom predicates applied
+    // Walk up to find root node
+    let rootNode = captures[0].node;
+    while (rootNode.parent) {
+      rootNode = rootNode.parent;
+    }
+    const matches = this.matches(rootNode);
+    
+    // Build a set of valid capture node IDs
+    const validCaptures = new Set();
+    for (const match of matches) {
+      for (const capture of match.captures) {
+        validCaptures.add(`${capture.node.id}_${capture.name}`);
+      }
+    }
+    
+    // Filter the captures to only include valid ones
+    for (const capture of captures) {
+      const key = `${capture.node.id}_${capture.name}`;
+      if (validCaptures.has(key)) {
+        filtered.push(capture);
+      }
+    }
+    
+    return filtered;
+  }
+  
+  matches(node, startPosition, endPosition) {
+    const matches = this.baseQuery.matches(node, startPosition, endPosition);
+    return this._applyCustomPredicates(matches, false);
+  }
+  
+  captures(node, startPosition, endPosition) {
+    const captures = this.baseQuery.captures(node, startPosition, endPosition);
+    return this._applyCustomPredicates(captures, true);
+  }
+  
+  predicatesForPattern(patternIndex) {
+    return this.baseQuery.predicatesForPattern(patternIndex);
+  }
 }
 
 /**
- * Check if a predicate is built-in to tree-sitter
- * @param {string} name - Predicate name
- * @returns {boolean} - True if built-in
+ * Create an enhanced query with custom predicate support
+ * @param {Language} language - Tree-sitter language object
+ * @param {string} source - Query source string
+ * @returns {Query} - Enhanced query object
  */
-function isBuiltinPredicate(name) {
-  const builtinPredicates = [
-    'eq?', 'not-eq?', 
-    'match?', 'not-match?',
-    'contains?', 'not-contains?',
-    'is?', 'is-not?',
-    'any-of?', 'not-any-of?',
-    'lua-match?', 'not-lua-match?',
-    'offset!', 'strip!',
-    'gsub!', 'trim!',
-    'set!'
-  ];
-  return builtinPredicates.includes(name);
+function createQueryWithPredicates(language, source) {
+  return new QueryWithCustomPredicates(language, source);
 }
 
 /**
  * Enhance a tree-sitter Language object with custom predicate support
+ * This returns an object that mimics the language interface but with enhanced query creation
  * @param {Language} language - Tree-sitter language object
- * @returns {Language} - Enhanced language object
+ * @returns {Object} - Enhanced language-like object
  */
 function enhanceLanguageWithPredicates(language) {
-  // Store original query method
-  const originalQuery = language.query.bind(language);
-  
-  // Override query method to return enhanced Query objects
-  language.query = function(source) {
-    const query = originalQuery(source);
+  return {
+    // Pass through all language properties
+    ...language,
     
-    // Store original methods
-    const originalMatches = query.matches.bind(query);
-    const originalCaptures = query.captures.bind(query);
-    
-    // Override matches method
-    query.matches = function(node, startPosition, endPosition) {
-      const matches = originalMatches(node, startPosition, endPosition);
-      return applyCustomPredicates(matches, this);
-    };
-    
-    // Override captures method
-    query.captures = function(node, startPosition, endPosition) {
-      const captures = originalCaptures(node, startPosition, endPosition);
-      return applyCustomPredicatesToCaptures(captures, this);
-    };
-    
-    return query;
+    // Enhanced query method
+    query: function(source) {
+      return createQueryWithPredicates(language, source);
+    }
   };
-  
-  return language;
 }
 
 module.exports = {
-  applyCustomPredicates,
-  applyCustomPredicatesToCaptures,
+  createQueryWithPredicates,
   enhanceLanguageWithPredicates,
   SolidityPredicates
 };
