@@ -29,6 +29,13 @@ const PREC = {
     POSTFIX_UNARY: 13, // [1]
     CALL: 13, // ??
     REVERT: 13, // ??
+    // Context-sensitive parsing precedences
+    TYPE_CONTEXT: 2,
+    EXPRESSION_CONTEXT: 1,
+    ARRAY_TYPE: 3,
+    ARRAY_ACCESS: 2,
+    TYPE_PATH: 3,
+    EXPRESSION_PATH: 1,
 }
 
 // The following is the core grammar for Solidity. It accepts Solidity smart contracts between the versions 0.4.x and 0.7.x.
@@ -869,21 +876,21 @@ module.exports = grammar({
             field('property', $.identifier)
         )),
 
-        array_access: $ => seq(
+        array_access: $ => prec.left(PREC.POSTFIX_UNARY, seq(
             field('base', $.expression),
             '[',
             optional(field('index', $.expression)),
             ']'
-        ),
+        )),
 
-        slice_access: $ => seq(
+        slice_access: $ => prec.left(PREC.POSTFIX_UNARY, seq(
             field('base', $.expression),
             '[',
             optional(field('from', $.expression)),
             ':',
             optional(field('to', $.expression)),
             ']'
-        ),
+        )),
 
         struct_expression: $ => prec(2, seq(
             field("type", $.expression),
@@ -941,7 +948,12 @@ module.exports = grammar({
             $._function_type,
         ),
 
-        _array_type: $ => prec(1, seq($.type_name, '[', optional($.expression), ']')),
+        _array_type: $ => prec(PREC.ARRAY_TYPE, seq(
+            $.type_name,
+            '[',
+            optional($.expression),
+            ']'
+        )),
 
         _function_type: $ => prec.right(seq(
             'function',
@@ -1009,15 +1021,15 @@ module.exports = grammar({
             $._ufixed,
         )),
 
-        _int: $ => choice (
-            'int', 'int8', 'int16', 'int24', 'int32', 'int40', 'int48', 'int56', 'int64', 'int72', 'int80', 'int88', 'int96', 'int104', 'int112', 'int120', 'int128', 'int136', 'int144', 'int152', 'int160', 'int168', 'int176', 'int184', 'int192', 'int200', 'int208', 'int216', 'int224', 'int232', 'int240', 'int248', 'int256'
-        ),
-        _uint: $ => choice (
-            'uint', 'uint8', 'uint16', 'uint24', 'uint32', 'uint40', 'uint48', 'uint56', 'uint64', 'uint72', 'uint80', 'uint88', 'uint96', 'uint104', 'uint112', 'uint120', 'uint128', 'uint136', 'uint144', 'uint152', 'uint160', 'uint168', 'uint176', 'uint184', 'uint192', 'uint200', 'uint208', 'uint216', 'uint224', 'uint232', 'uint240', 'uint248', 'uint256'
-        ),
-        _bytes: $ => choice (
-            'byte', 'bytes', 'bytes1', 'bytes2', 'bytes3', 'bytes4', 'bytes5', 'bytes6', 'bytes7', 'bytes8', 'bytes9', 'bytes10', 'bytes11', 'bytes12', 'bytes13', 'bytes14', 'bytes15', 'bytes16', 'bytes17', 'bytes18', 'bytes19', 'bytes20', 'bytes21', 'bytes22', 'bytes23', 'bytes24', 'bytes25', 'bytes26', 'bytes27', 'bytes28', 'bytes29', 'bytes30', 'bytes31', 'bytes32'
-        ),
+        _int: $ => token(choice(
+            'int',
+            /int(8|16|24|32|40|48|56|64|72|80|88|96|104|112|120|128|136|144|152|160|168|176|184|192|200|208|216|224|232|240|248|256)/
+        )),
+        _uint: $ => token(choice(
+            'uint',
+            /uint(8|16|24|32|40|48|56|64|72|80|88|96|104|112|120|128|136|144|152|160|168|176|184|192|200|208|216|224|232|240|248|256)/
+        )),
+        _bytes: $ => token(/bytes([1-9]|[12][0-9]|3[0-2])?/),
 
         _fixed: $ => choice (
             'fixed',
